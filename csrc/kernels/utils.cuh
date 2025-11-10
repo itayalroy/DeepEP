@@ -101,6 +101,16 @@ __device__ __forceinline__ uint64_t ld_acquire_sys_global(const uint64_t* ptr) {
     return ret;
 }
 
+// Delayed version for testing hardware atomic delay (2 usec ~= 3660 cycles @ 1.83 GHz H100)
+__device__ __forceinline__ int ld_acquire_sys_global_delayed(const int* ptr) {
+    int ret = ld_acquire_sys_global(ptr);
+    if (ret != 0) {  // Only delay if atomic has arrived
+        uint64_t start = clock64();
+        while (clock64() - start < 3660) {}  // ~2 usec delay @ H100 SM clock
+    }
+    return ret;
+}
+
 __device__ __forceinline__ int ld_acquire_global(const int* ptr) {
     int ret;
     asm volatile("ld.acquire.gpu.global.s32 %0, [%1];" : "=r"(ret) : "l"(ptr));
