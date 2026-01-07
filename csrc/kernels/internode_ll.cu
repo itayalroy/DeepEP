@@ -154,6 +154,31 @@ __global__ __launch_bounds__(1024, 1) void dispatch(void* packed_recv_x,
                                                     int num_warps_per_group,
                                                     bool round_scale,
                                                     int phases) {
+    // Debug: Check for duplicate experts in topk for each token (thread 0 only)
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
+        for (int token = 0; token < num_tokens; token++) {
+            // Check for duplicates in this token's topk
+            for (int i = 0; i < num_topk; i++) {
+                topk_idx_t expert_i = topk_idx[token * num_topk + i];
+                for (int j = i + 1; j < num_topk; j++) {
+                    topk_idx_t expert_j = topk_idx[token * num_topk + j];
+                    if (expert_i == expert_j) {
+                        // Found duplicate - print token idx and full topk
+                        printf("DUPLICATE EXPERT FOUND! Token %d has expert %lld appearing multiple times. Full topk: [",
+                               token, (long long)expert_i);
+                        for (int k = 0; k < num_topk; k++) {
+                            printf("%lld", (long long)topk_idx[token * num_topk + k]);
+                            if (k < num_topk - 1) printf(", ");
+                        }
+                        printf("]\n");
+                        break;  // Only report once per token
+                    }
+                }
+            }
+        }
+    }
+    __syncthreads();  // Ensure all threads wait for the check to complete
+
     const auto sm_id = static_cast<int>(blockIdx.x);
     const auto thread_id = static_cast<int>(threadIdx.x);
     const auto warp_id = thread_id / 32, lane_id = get_lane_id();
