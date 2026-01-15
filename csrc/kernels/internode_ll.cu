@@ -163,14 +163,17 @@ __global__ __launch_bounds__(1024, 1) void dispatch(void* packed_recv_x,
                 for (int j = i + 1; j < num_topk; j++) {
                     topk_idx_t expert_j = topk_idx[token * num_topk + j];
                     if (expert_i == expert_j) {
-                        // Found duplicate - print token idx and full topk
-                        printf("DUPLICATE EXPERT FOUND! Token %d has expert %lld appearing multiple times. Full topk: [",
-                               token, (long long)expert_i);
-                        for (int k = 0; k < num_topk; k++) {
-                            printf("%lld", (long long)topk_idx[token * num_topk + k]);
-                            if (k < num_topk - 1) printf(", ");
-                        }
-                        printf("]\n");
+                        // Found duplicate - print token idx and full topk (assumes num_topk==8)
+                        printf("DUPLICATE EXPERT FOUND! Token %d has expert %lld appearing multiple times. Full topk: [%lld, %lld, %lld, %lld, %lld, %lld, %lld, %lld]\n",
+                               token, (long long)expert_i,
+                               (long long)topk_idx[token * num_topk + 0],
+                               (long long)topk_idx[token * num_topk + 1],
+                               (long long)topk_idx[token * num_topk + 2],
+                               (long long)topk_idx[token * num_topk + 3],
+                               (long long)topk_idx[token * num_topk + 4],
+                               (long long)topk_idx[token * num_topk + 5],
+                               (long long)topk_idx[token * num_topk + 6],
+                               (long long)topk_idx[token * num_topk + 7]);
                         break;  // Only report once per token
                     }
                 }
