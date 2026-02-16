@@ -600,6 +600,26 @@ class Buffer:
             hook: the receiving hook function (valid only if `return_recv_hook` is set).
         """
         assert self.nvshmem_qp_depth >= (num_max_dispatch_tokens_per_rank + 1) * 2
+
+        # --- DEBUG: identify tensor without storage ---
+        import sys
+        def _check_tensor(name, t):
+            if t is None:
+                print(f"  {name}: None", file=sys.stderr, flush=True)
+                return
+            try:
+                _ = t.data_ptr()
+                print(f"  {name}: OK shape={tuple(t.shape)} dtype={t.dtype} storage={t.storage().size()}", file=sys.stderr, flush=True)
+            except Exception as e:
+                print(f"  {name}: *** NO STORAGE *** shape={tuple(t.shape)} dtype={t.dtype} err={e}", file=sys.stderr, flush=True)
+        print(f"[DeepEP DEBUG] rank={self.rank} group_size={self.group_size} available={self.runtime.is_available()}", file=sys.stderr, flush=True)
+        _check_tensor("x", x)
+        _check_tensor("topk_idx", topk_idx)
+        _check_tensor("cumulative_local_expert_recv_stats", cumulative_local_expert_recv_stats)
+        _check_tensor("dispatch_wait_recv_cost_stats", dispatch_wait_recv_cost_stats)
+        print(f"[DeepEP DEBUG] num_max={num_max_dispatch_tokens_per_rank} num_experts={num_experts} use_fp8={use_fp8} round_scale={round_scale} use_ue8m0={use_ue8m0}", file=sys.stderr, flush=True)
+        # --- END DEBUG ---
+
         packed_recv_x, packed_recv_x_scales, packed_recv_count, packed_recv_src_info, packed_recv_layout_range, event, hook = \
             self.runtime.low_latency_dispatch(x, topk_idx,
                                               cumulative_local_expert_recv_stats,
