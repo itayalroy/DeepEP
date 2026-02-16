@@ -100,6 +100,15 @@ class Buffer:
         local_ipc_handle = self.runtime.get_local_ipc_handle()
         ipc_handles = all_gather_object(local_ipc_handle)
 
+        # --- DEBUG: Buffer init ---
+        import sys
+        print(f"[DeepEP INIT DEBUG] rank={self.rank} group_size={self.group_size}", file=sys.stderr, flush=True)
+        print(f"[DeepEP INIT DEBUG] device_ids={device_ids}", file=sys.stderr, flush=True)
+        print(f"[DeepEP INIT DEBUG] ipc_handles lens={[len(h) if h is not None else None for h in ipc_handles]}", file=sys.stderr, flush=True)
+        print(f"[DeepEP INIT DEBUG] num_nvl_bytes={num_nvl_bytes} num_rdma_bytes={num_rdma_bytes} low_latency_mode={low_latency_mode}", file=sys.stderr, flush=True)
+        print(f"[DeepEP INIT DEBUG] num_rdma_ranks={self.runtime.get_num_rdma_ranks()}", file=sys.stderr, flush=True)
+        # --- END DEBUG ---
+
         # Synchronize NVSHMEM unique IDs
         root_unique_id = None
         if self.runtime.get_num_rdma_ranks() > 1 or low_latency_mode:
@@ -131,9 +140,15 @@ class Buffer:
             nvshmem_unique_ids = all_gather_object(root_unique_id)
             root_unique_id = nvshmem_unique_ids[0 if low_latency_mode else self.runtime.get_root_rdma_rank(True)]
 
+        # --- DEBUG: NVSHMEM unique ID ---
+        print(f"[DeepEP INIT DEBUG] rank={self.rank} nvshmem_unique_ids gathered={[x is not None for x in nvshmem_unique_ids] if 'nvshmem_unique_ids' in dir() else 'N/A'}", file=sys.stderr, flush=True)
+        print(f"[DeepEP INIT DEBUG] rank={self.rank} root_unique_id is None={root_unique_id is None}", file=sys.stderr, flush=True)
+        # --- END DEBUG ---
+
         # Make CPP runtime available
         self.runtime.sync(device_ids, ipc_handles, root_unique_id)
         assert self.runtime.is_available()
+        print(f"[DeepEP INIT DEBUG] rank={self.rank} sync complete, is_available={self.runtime.is_available()}", file=sys.stderr, flush=True)
 
     def destroy(self):
         """
